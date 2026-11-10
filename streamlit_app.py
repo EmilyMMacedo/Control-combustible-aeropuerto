@@ -20,7 +20,7 @@ with st.sidebar.form("form_ge_compartido", clear_on_submit=True):
     st.markdown("---")
     st.subheader("⛽ Tanque de Combustible (General)")
     combustible_tanque = st.number_input(
-        "Nivel del Tanque (Litros o %):", 
+        "Nivel del Tanque (Galones):", 
         min_value=0.0, 
         step=1.0, 
         format="%.1f"
@@ -50,7 +50,7 @@ with st.sidebar.form("form_ge_compartido", clear_on_submit=True):
         # Consolidar la información estructurada
         nuevo_registro = {
             "Fecha_Hora": fecha_hora_str,
-            "Combustible_Tanque": combustible_tanque,
+            "Combustible_Galones": combustible_tanque,
             "Horas_GE1": horometro_ge1,
             "Alarma_GE1": f"Sí - {detalle_ge1}" if alarma_ge1 else "Ninguna",
             "Horas_GE2": horometro_ge2,
@@ -80,7 +80,7 @@ try:
         # Métricas generales arriba
         col1, col2, col3, col4 = st.columns(4)
         col1.metric("Total Registros", len(df))
-        col2.metric("Nivel Tanque Actual", f"{df['Combustible_Tanque'].iloc[-1]:,.1f}")
+        col2.metric("Nivel Tanque Actual", f"{df['Combustible_Galones'].iloc[-1]:,.1f} gal")
         col3.metric("Horómetro Último GE-01", f"{df['Horas_GE1'].iloc[-1]:,.1f} h")
         col4.metric("Horómetro Último GE-02", f"{df['Horas_GE2'].iloc[-1]:,.1f} h")
         
@@ -90,8 +90,8 @@ try:
         col_g1, col_g2 = st.columns(2)
         
         with col_g1:
-            st.markdown("**Nivel del Tanque Compartido**")
-            st.line_chart(df, x="Fecha_Hora", y="Combustible_Tanque")
+            st.markdown("**Nivel del Tanque Compartido (Galones)**")
+            st.line_chart(df, x="Fecha_Hora", y="Combustible_Galones")
             
         with col_g2:
             st.markdown("**Horas de Funcionamiento (GE-01 vs GE-02)**")
