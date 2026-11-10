@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
-import os
 
 # Configuración inicial de la página
 st.set_page_config(page_title="Control de Grupos Electrógenos", layout="wide")
@@ -75,49 +74,36 @@ with st.sidebar.form("form_ge_compartido", clear_on_submit=True):
 st.markdown("---")
 
 try:
-    if os.path.exists(ARCHIVO_DATOS):
-        df = pd.read_csv(ARCHIVO_DATOS)
+    df = pd.read_csv(ARCHIVO_DATOS)
+    
+    if not df.empty:
+        # Métricas generales arriba
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("Total Registros", len(df))
+        col2.metric("Nivel Tanque Actual", f"{df['Combustible_Galones'].iloc[-1]:,.1f} gal")
+        col3.metric("Horómetro Último GE-01", f"{df['Horas_GE1'].iloc[-1]:,.1f} h")
+        col4.metric("Horómetro Último GE-02", f"{df['Horas_GE2'].iloc[-1]:,.1f} h")
         
-        # Validación extra por si quedó un archivo viejo con columnas diferentes
-        if "Combustible_Galones" not in df.columns:
-            st.warning("⚠️ Se detectó un formato de datos antiguo en el servidor. Reiniciando archivo de registros...")
-            os.remove(ARCHIVO_DATOS)
-            st.rerun()
+        # Gráficos de tendencias
+        st.subheader("📊 Tendencias Operativas")
+        
+        col_g1, col_g2 = st.columns(2)
+        
+        with col_g1:
+            st.markdown("**Nivel del Tanque Compartido (Galones)**")
+            st.line_chart(df, x="Fecha_Hora", y="Combustible_Galones")
             
-        if not df.empty:
-            # Métricas generales arriba
-            col1, col2, col3, col4 = st.columns(4)
-            col1.metric("Total Registros", len(df))
-            col2.metric("Nivel Tanque Actual", f"{df['Combustible_Galones'].iloc[-1]:,.1f} gal")
-            col3.metric("Horómetro Último GE-01", f"{df['Horas_GE1'].iloc[-1]:,.1f} h")
-            col4.metric("Horómetro Último GE-02", f"{df['Horas_GE2'].iloc[-1]:,.1f} h")
+        with col_g2:
+            st.markdown("**Horas de Funcionamiento (GE-01 vs GE-02)**")
+            df_horometros = df[["Fecha_Hora", "Horas_GE1", "Horas_GE2"]].set_index("Fecha_Hora")
+            st.line_chart(df_horometros)
             
-            # Gráficos de tendencias
-            st.subheader("📊 Tendencias Operativas")
-            
-            col_g1, col_g2 = st.columns(2)
-            
-            with col_g1:
-                st.markdown("**Nivel del Tanque Compartido (Galones)**")
-                st.line_chart(df, x="Fecha_Hora", y="Combustible_Galones")
-                
-            with col_g2:
-                st.markdown("**Horas de Funcionamiento (GE-01 vs GE-02)**")
-                df_horometros = df[["Fecha_Hora", "Horas_GE1", "Horas_GE2"]].set_index("Fecha_Hora")
-                st.line_chart(df_horometros)
-                
-            # Tabla de historial completo
-            st.subheader("📋 Historial de Registros Detallado")
-            st.dataframe(df.sort_values(by="Fecha_Hora", ascending=False), use_container_width=True)
-            
-        else:
-            st.info("El archivo de registros está vacío. Comienza ingresando datos en el panel lateral.")
+        # Tabla de historial completo
+        st.subheader("📋 Historial de Registros Detallado")
+        st.dataframe(df.sort_values(by="Fecha_Hora", ascending=False), use_container_width=True)
+        
     else:
-        st.info("👋 ¡Bienvenido! Aún no hay un archivo de datos creado. Usa el formulario de la izquierda para registrar la primera lectura.")
+        st.info("El archivo de registros está vacío. Comienza ingresando datos en el panel lateral.")
 
-except Exception as e:
-    # Si ocurre cualquier conflicto con el archivo viejo, lo borramos de forma segura
-    if os.path.exists(ARCHIVO_DATOS):
-        os.remove(ARCHIVO_DATOS)
-    st.error("Se actualizó la estructura de la base de datos local. Por favor, recarga la página o ingresa tu primer registro.")
-¿Qué debes hacer?
+except FileNotFoundError:
+    st.info("👋 ¡Bienvenido! Aún no hay un archivo de datos creado. Usa el formulario de la izquierda para registrar la primera lectura.")
