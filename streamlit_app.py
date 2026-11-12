@@ -6,7 +6,7 @@ st.set_page_config(page_title="Monitoreo Grupos Electrógenos", layout="wide")
 st.title("⚡ Panel Operativo: Grupos Electrógenos y Combustible")
 
 # 1. PEGA AQUÍ EL ENLACE COMPARTIDO DE TU ARCHIVO EXCEL EN ONEDRIVE
-URL_ONEDRIVE = "https://corpaconline-my.sharepoint.com/:x:/g/personal/emamani_corpac_gob_pe/IQBJU2a0OBFZTqJjb1EG9MczAdHad_9JzlNW3pKEiZBKb90?e=Tjfw4I"
+URL_ONEDRIVE = "https://docs.google.com/spreadsheets/d/1-Ck3YQRoGY8YLjcXoUs8h88aYY3BMfrF/edit?usp=sharing&ouid=104586048846795279374&rtpof=true&sd=true"
 
 def convertir_url_onedrive(url):
     # Convierte el enlace estándar de compartir de OneDrive en enlace de descarga directa para Pandas
