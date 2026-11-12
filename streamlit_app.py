@@ -1,109 +1,126 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime
 
-# Configuración inicial de la página
-st.set_page_config(page_title="Control de Grupos Electrógenos", layout="wide")
-st.title("⚡ Monitoreo Operativo: 2 Grupos Electrógenos (Tanque Compartido)")
+# Configuración de la página
+st.set_page_config(page_title="Monitoreo Grupos Electrógenos", layout="wide")
+st.title("⚡ Panel Operativo: Grupos Electrógenos y Combustible")
 
-# Nombre del archivo de respaldo local
-ARCHIVO_DATOS = "registro_aeropuerto_ge.csv"
+# 1. PEGA AQUÍ EL ENLACE COMPARTIDO DE TU ARCHIVO EXCEL EN ONEDRIVE
+URL_ONEDRIVE = "https://corpaconline-my.sharepoint.com/:x:/g/personal/emamani_corpac_gob_pe/IQBJU2a0OBFZTqJjb1EG9MczAWDnAew2MYr-yUXJJ4ISidE?e=fedf2R"
 
-# --- PANEL LATERAL: FORMULARIO DE REGISTRO ---
-st.sidebar.header("📝 Registro de Lectura Operativa")
+def convertir_url_onedrive(url):
+    # Convierte el enlace estándar de compartir de OneDrive en enlace de descarga directa para Pandas
+    if "1drv.ms" in url or "onedrive.live.com" in url:
+        if "download=1" not in url:
+            separador = "&" if "?" in url else "?"
+            return f"{url}{separador}download=1"
+    return url
 
-with st.sidebar.form("form_ge_compartido", clear_on_submit=True):
-    # Fecha y hora del registro
-    fecha_registro = st.date_input("Fecha de lectura", value=datetime.now())
-    hora_registro = st.time_input("Hora de lectura", value=datetime.now().time())
-    
-    st.markdown("---")
-    st.subheader("⛽ Tanque de Combustible (General)")
-    combustible_tanque = st.number_input(
-        "Nivel del Tanque (Galones):", 
-        min_value=0.0, 
-        step=1.0, 
-        format="%.1f"
-    )
-    
-    st.markdown("---")
-    st.subheader("⚙️ Grupo Electrógeno 01")
-    horometro_ge1 = st.number_input("Horómetro GE-01 (Horas):", min_value=0.0, step=0.1, format="%.1f")
-    alarma_ge1 = st.checkbox("⚠️ ¿Alarma activa en GE-01?")
-    detalle_ge1 = st.text_input("Detalle Alarma GE-01 (opcional):")
-    
-    st.markdown("---")
-    st.subheader("⚙️ Grupo Electrógeno 02")
-    horometro_ge2 = st.number_input("Horómetro GE-02 (Horas):", min_value=0.0, step=0.1, format="%.1f")
-    alarma_ge2 = st.checkbox("⚠️ ¿Alarma activa en GE-02?")
-    detalle_ge2 = st.text_input("Detalle Alarma GE-02 (opcional):")
-    
-    st.markdown("---")
-    operador = st.text_input("Técnico / Operador responsable:")
-    
-    # Botón de envío
-    submitted = st.form_submit_button("Guardar Registro")
-    
-    if submitted:
-        fecha_hora_str = f"{fecha_registro} {hora_registro.strftime('%H:%M')}"
-        
-        # Consolidar la información estructurada
-        nuevo_registro = {
-            "Fecha_Hora": fecha_hora_str,
-            "Combustible_Galones": combustible_tanque,
-            "Horas_GE1": horometro_ge1,
-            "Alarma_GE1": f"Sí - {detalle_ge1}" if alarma_ge1 else "Ninguna",
-            "Horas_GE2": horometro_ge2,
-            "Alarma_GE2": f"Sí - {detalle_ge2}" if alarma_ge2 else "Ninguna",
-            "Operador": operador if operador else "No especificado"
-        }
-        
-        df_nuevo = pd.DataFrame([nuevo_registro])
-        
-        try:
-            with open(ARCHIVO_DATOS, 'r') as f:
-                header_flag = False
-        except FileNotFoundError:
-            header_flag = True
-            
-        df_nuevo.to_csv(ARCHIVO_DATOS, mode='a', header=header_flag, index=False)
-        st.sidebar.success("¡Registro guardado con éxito!")
-        st.rerun()
+url_descarga = convertir_url_onedrive(URL_ONEDRIVE)
 
-# --- VISTA PRINCIPAL DEL DASHBOARD ---
-st.markdown("---")
+# Botón manual para refrescar los datos al instante
+if st.button("🔄 Actualizar Datos"):
+    st.cache_data.clear()
+
+@st.cache_data(ttl=60)
+def cargar_datos(url):
+    return pd.read_excel(url)
 
 try:
-    df = pd.read_csv(ARCHIVO_DATOS)
-    
-    if not df.empty:
-        # Métricas generales arriba
-        col1, col2, col3, col4 = st.columns(4)
-        col1.metric("Total Registros", len(df))
-        col2.metric("Nivel Tanque Actual", f"{df['Combustible_Galones'].iloc[-1]:,.1f} gal")
-        col3.metric("Horómetro Último GE-01", f"{df['Horas_GE1'].iloc[-1]:,.1f} h")
-        col4.metric("Horómetro Último GE-02", f"{df['Horas_GE2'].iloc[-1]:,.1f} h")
-        
-        # Gráficos de tendencias
-        st.subheader("📊 Tendencias Operativas")
-        
-        col_g1, col_g2 = st.columns(2)
-        
-        with col_g1:
-            st.markdown("**Nivel del Tanque Compartido (Galones)**")
-            st.line_chart(df, x="Fecha_Hora", y="Combustible_Galones")
-            
-        with col_g2:
-            st.markdown("**Horas de Funcionamiento (GE-01 vs GE-02)**")
-            df_horometros = df[["Fecha_Hora", "Horas_GE1", "Horas_GE2"]].set_index("Fecha_Hora")
-            st.line_chart(df_horometros)
-            
-        # Tabla de historial completo
-        st.subheader("📋 Historial de Registros Detallado")
-        st.dataframe(df.sort_values(by="Fecha_Hora", ascending=False), use_container_width=True)
-        
-    else:
-        st.info("El archivo de registros está vacío. Comienza ingresando datos en el panel lateral.")
+    df = cargar_datos(url_descarga)
+    df = df.dropna(how="all")
 
-except FileNotFoundError:
-    st.info("👋 ¡Bienvenido! Aún no hay un archivo de datos creado. Usa el formulario de la izquierda para registrar la primera lectura.")
+    if not df.empty:
+        # Aseguramos formato numérico en las columnas clave
+        cols_numericas = ["Combustible_Galones", "Horas_GE1", "Voltaje_GE1", "Horas_GE2", "Voltaje_GE2"]
+        for col in cols_numericas:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors="coerce")
+
+        # Obtener la última lectura registrada
+        ultimo = df.iloc[-1]
+
+        # --- PANEL DE ALERTAS CRÍTICAS ---
+        st.subheader("🚨 Estado de Alertas y Parámetros Críticos")
+        alertas_activas = False
+
+        # Verificación de Voltaje (< 13.0 V)
+        if ultimo["Voltaje_GE1"] < 13.0:
+            st.error(f"⚠️ ALERTA GE-01: Voltaje de batería bajo ({ultimo['Voltaje_GE1']:.1f} V). Mínimo permitido: 13.0 V.")
+            alertas_activas = True
+        if ultimo["Voltaje_GE2"] < 13.0:
+            st.error(f"⚠️ ALERTA GE-02: Voltaje de batería bajo ({ultimo['Voltaje_GE2']:.1f} V). Mínimo permitido: 13.0 V.")
+            alertas_activas = True
+
+        # Verificación de Nivel de Aceite ('min')
+        aceite_1 = str(ultimo["Aceite_GE1"]).strip().lower()
+        aceite_2 = str(ultimo["Aceite_GE2"]).strip().lower()
+
+        if aceite_1 == "min":
+            st.warning("⚠️ ATENCIÓN GE-01: Nivel de aceite en MÍNIMO (min).")
+            alertas_activas = True
+        if aceite_2 == "min":
+            st.warning("⚠️ ATENCIÓN GE-02: Nivel de aceite en MÍNIMO (min).")
+            alertas_activas = True
+
+        # Verificación de Alarmas Generales del tablero
+        if str(ultimo["Alarma_GE1"]).strip().lower() not in ["ninguna", "no", "nan", ""]:
+            st.error(f"🔔 Alarma Tablero GE-01: {ultimo['Alarma_GE1']}")
+            alertas_activas = True
+        if str(ultimo["Alarma_GE2"]).strip().lower() not in ["ninguna", "no", "nan", ""]:
+            st.error(f"🔔 Alarma Tablero GE-02: {ultimo['Alarma_GE2']}")
+            alertas_activas = True
+
+        if not alertas_activas:
+            st.success("✅ Todos los parámetros operan dentro de los rangos normales (Baterías ≥ 13 V, Aceite OK, Sin alarmas).")
+
+        # --- MÉTRICAS GENERALES Y POR GRUPO ---
+        st.markdown("---")
+        st.subheader("📌 Última Lectura Registrada")
+        
+        # Tanque General
+        st.metric("⛽ Nivel Tanque Compartido", f"{ultimo['Combustible_Galones']:,.1f} gal")
+        
+        col_ge1, col_ge2 = st.columns(2)
+        
+        with col_ge1:
+            st.markdown("### ⚙️ Grupo Electrógeno 01")
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Horómetro", f"{ultimo['Horas_GE1']:,.1f} h")
+            c2.metric("Nivel Aceite", str(ultimo['Aceite_GE1']).upper())
+            # Muestra diferencia negativa en rojo si baja de 13V
+            delta_v1 = ultimo['Voltaje_GE1'] - 13.0
+            c3.metric("Batería", f"{ultimo['Voltaje_GE1']:.1f} V", delta=f"{delta_v1:+.1f} V vs 13V")
+
+        with col_ge2:
+            st.markdown("### ⚙️ Grupo Electrógeno 02")
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Horómetro", f"{ultimo['Horas_GE2']:,.1f} h")
+            c2.metric("Nivel Aceite", str(ultimo['Aceite_GE2']).upper())
+            delta_v2 = ultimo['Voltaje_GE2'] - 13.0
+            c3.metric("Batería", f"{ultimo['Voltaje_GE2']:.1f} V", delta=f"{delta_v2:+.1f} V vs 13V")
+
+        # --- GRÁFICOS DE TENDENCIAS ---
+        st.markdown("---")
+        st.subheader("📊 Evolución Histórica")
+        col_g1, col_g2 = st.columns(2)
+
+        with col_g1:
+            st.markdown("**Nivel de Combustible (Galones)**")
+            st.line_chart(df, x="Fecha_Hora", y="Combustible_Galones")
+
+        with col_g2:
+            st.markdown("**Voltaje de Baterías (GE-01 vs GE-02)**")
+            df_voltajes = df[["Fecha_Hora", "Voltaje_GE1", "Voltaje_GE2"]].set_index("Fecha_Hora")
+            st.line_chart(df_voltajes)
+
+        # --- HISTORIAL COMPLETO ---
+        st.markdown("---")
+        st.subheader("📋 Historial Completo")
+        st.dataframe(df.iloc[::-1], use_container_width=True)
+
+    else:
+        st.info("La hoja de Excel está vacía. Ingresa la primera fila de datos en OneDrive y presiona 'Actualizar Datos'.")
+
+except Exception as e:
+    st.error("No se pudo leer el archivo de OneDrive. Verifica que el enlace sea público ('Cualquier persona con el enlace puede ver') y que las columnas coincidan.")
